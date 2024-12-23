@@ -1,6 +1,7 @@
 import discogs_client
 import time
 import mysql.connector
+import requests
 
 db = mysql.connector.connect(
     host="localhost",
@@ -11,10 +12,11 @@ db = mysql.connector.connect(
 
 cursor = db.cursor()
 
-token = "IVjLNDlEOpZSTjkQVZzjhBUQupJeZOhiEnGhyiww"
+token = "haaYxvvgiHVpZYxHVPfUCkPtBqJKhgBOEIBUwtkZ"
 d = discogs_client.Client('ExampleApplication/0.1', token)
 
 
+api_url = "https://api.discogs.com"
 
 
 def get_label(id):
@@ -65,7 +67,45 @@ def get_releases(label):
 
 
             if r.title != i.title and r.year:
-                cursor.execute("INSERT INTO album (album_name, year, author_id, label_id) VALUES(%s, %s, %s, %s)", (album_name, r.year, artist_id, label_id))
+                rating = 0.0
+                price = -1.0
+
+                p = requests.get(f"{api_url}/releases/{r.id}")
+
+                time.sleep(1)
+
+                if (p is not None):
+                    try:
+                        data = p.json()
+
+                        # print(data.get('rating').get('average'))
+                        price_ = data.get('lowest_price')
+                        if (price_ is not None):
+                            price = price_
+                        else:
+                            price = -1.0
+                    except:
+                        price = -1.0
+
+                time.sleep(1)
+
+                p = requests.get((f"{api_url}/releases/{r.id}/rating"))
+
+                if (p is not None):
+                    try:
+                        data = p.json()
+
+                        rating_ = data.get('rating').get('average')
+                        #time.sleep(1)
+
+                        if (rating_ is not None):
+                            rating = rating_
+                        else:
+                            rating = 0.0
+                    except:
+                        rating = 0.0
+
+                cursor.execute("INSERT INTO album (album_name, year, author_id, label_id, rating, price) VALUES(%s, %s, %s, %s, %s, %s)", (album_name, r.year, artist_id, label_id, rating, price))
                 db.commit()
 
                 cursor.execute("SELECT album_id FROM album WHERE album_name = %s", (r.title,))
